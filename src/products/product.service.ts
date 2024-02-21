@@ -30,4 +30,8 @@ export class ProductService {
     async updateProduct(id: string, updatedProductData: object) {
         return await this.productModel.findByIdAndUpdate(id, updatedProductData)
     }
+
+    async updateProduct1(id: string, updatedProductData: object) {
+        return await this.productModel.findByIdAndUpdate(id, updatedProductData)
+    }
 }

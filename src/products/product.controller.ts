@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
 import { ProductService } from "./product.service";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { storageConfig } from "../helpers/upload.file";
@@ -141,7 +141,7 @@ export class ProductController {
             fileSize: 5 * 1024 * 1024,
         }
     }))
-    async updateProduct(
+    async updateProductWithPut(
         @UploadedFiles() files: Express.Multer.File[],
         @Body() body: any,
         @Res() res: Response,
@@ -184,6 +184,69 @@ export class ProductController {
                     status: 201,
                     message: 'Cập nhật sản phẩm thành công',
                     data: updateProduct
+                })
+            }
+        } catch (error) {
+            return res.json({
+                status: 500,
+                message: `Xảy ra lỗi ${error}`,
+            })
+        }
+    }
+
+    @Patch('/update-product/:id')
+    @UseInterceptors(FilesInterceptor('image', 10, {
+        storage: storageConfig('image-product'),
+        limits: {
+            fileSize: 5 * 1024 * 1024,
+        }
+    }))
+    async updateProductWithPatch(
+        @UploadedFiles() files: Express.Multer.File[],
+        @Body() body: {
+            name?: string,
+            price_old?: number,
+            price_discount?: number,
+            quantity?: number,
+            description?: number,
+            image?: string[]
+        },
+        @Res() res: Response,
+        @Param('id') id: string,
+    ) {       
+        try {
+            const findProduct = await this.productService.getProductById(id)
+            if (!findProduct) {
+                return res.json({
+                    status: 400,
+                    message: 'Không tìm thấy sản phẩm'
+                })
+            } else {
+                if(!files) {
+                    return res.json({
+                        status: 400,
+                        message: 'Không có file được tải lên',
+                    })
+                }
+                const URL = process.env.URL
+                const image = files.map(file => {
+                    return `${URL}/image-product/${file.filename}`
+                });
+
+                const currentProduct : any = await this.productService.getProductById(id);
+                const updatedProduct = {
+                    name: body.name ?? currentProduct.name,
+                    price_old: body.price_old ?? currentProduct.price_old,
+                    price_discount: body.price_discount ?? currentProduct.price_discount,
+                    quantity: body.quantity ?? currentProduct.quantity,
+                    description: body.description ?? currentProduct.description,
+                    image: image.length > 0 ? image : currentProduct.image
+                };
+                await this.productService.updateProduct(id, updatedProduct)
+                return res.json({
+                    status: 201,
+                    message: 'Cập nhật sản phẩm thành công',
+                    data: updatedProduct
                 })
             }
         } catch (error) {

@@ -8,5 +8,13 @@ async function bootstrap() {
   dotenv.config()
   app.useStaticAssets('storage')
   await app.listen(3000);
+
+
+
+
+
+
+
+  
 }
 bootstrap();

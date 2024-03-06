@@ -1,12 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res, UploadedFiles, UseInterceptors, UsePipes } from "@nestjs/common";
 import { ProductService } from "./product.service";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { storageConfig } from "../helpers/upload.file";
 import { Response } from "express";
+import { ProductJoiValidationPipe } from "../validator/product.validate";
+import * as Joi from 'joi';
+import { ObjectIdValidationPipe } from "../validator/objectid.validate";
+import { FileValidation } from "../validator/file.validate";
 
+const mongoIdSchema = Joi.string().length(24).hex(); // Schema cho _id của MongoDB
 @Controller('/v1')
 export class ProductController {
-    constructor(private productService: ProductService) {}
+    constructor(private productService: ProductService, readonly fileValidation: FileValidation) {}
 
     @Post('/add-product')
     @UseInterceptors(FilesInterceptor('image', 10, {
@@ -15,41 +20,56 @@ export class ProductController {
             fileSize: 5 * 1024 * 1024,
         }
     }))
+    @UsePipes(new ProductJoiValidationPipe(Joi.object({
+        name: Joi.string().required(),
+        price_old: Joi.number().required(),
+        price_discount: Joi.number(),
+        quantity: Joi.number().required(),
+        description: Joi.any(),
+    })))
     async createProduct(
         @UploadedFiles() files: Express.Multer.File[],
         @Body() body: any,
         @Res() res: Response
     ) {       
         try {
-            if(!files) {
-                return res.json({
-                    status: 400,
-                    message: 'Không có file được tải lên',
-                })
+            // const URL = process.env.URL
+            // const image = files.map(file => {
+            //     return `${URL}/image-product/${file.filename}`
+            // });
+
+            // if(!files || image.length === 0) {
+            //     return res.json({
+            //         status: 400,
+            //         message: 'Không có file được tải lên',
+            //     })
+            // }
+            const isValid = this.fileValidation.validateFile(files);
+
+            if (isValid) {
+            // Process the file
+            return 'File uploaded successfully!';
+            } else {
+            return 'Invalid file!';
             }
-            const URL = process.env.URL
-            if (files.length === 0 || !body.name || !body.price_old || !body.quantity) {
-                return res.json({
-                    status: 404,
-                    message: 'Thiếu 1 trong các dữ liệu name, price_old, quantity',
-                })
-            }
-            const image = files.map(file => {
-                return `${URL}/image-product/${file.filename}`
-            });
-            const newProduct = await this.productService.addProduct({
-                name: body.name,
-                price_old: body.price_old,
-                price_discount: body.price_discount || null,
-                quantity: body.quantity,
-                description: body.description || null,
-                image: image
-            })
-            return res.json({
-                status: 201,
-                message: 'Thêm sản phẩm thành công',
-                data: newProduct
-            })
+            // const URL = process.env.URL
+            // const image = files.map(file => {
+            //     return `${URL}/image-product/${file.filename}`
+            // });
+            
+            // const newProduct = await this.productService.addProduct({
+            //     name: body.name,
+            //     price_old: body.price_old,
+            //     price_discount: body.price_discount || null,
+            //     quantity: body.quantity,
+            //     description: body.description || null,
+            //     image: image
+            // })
+            // return res.json({
+            //     status: 201,
+            //     message: 'Thêm sản phẩm thành công',
+            //     data: newProduct
+            // })
         } catch (error) {
             return res.json({
                 status: 500,
@@ -83,7 +103,7 @@ export class ProductController {
 
     @Get('/product/:id')
     async deleteProduct(
-        @Param('id') id: string,
+        @Param('id', new ObjectIdValidationPipe(mongoIdSchema)) id: string,
         @Res() res: Response,
     ) {
         try {

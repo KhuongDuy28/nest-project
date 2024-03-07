@@ -59,4 +59,30 @@ export class ProductController {
         }
     }
 
+    @Get('/product/:id')
+    async deleteProduct1(
+        @Param('id', new ObjectIdValidationPipe(mongoIdSchema)) id: string,
+        @Res() res: Response,
+    ) {
+        try {
+            const findProduct = await this.productService.getProductById(id)
+            if (!findProduct) {
+                return res.json({
+                    status: 400,
+                    message: 'Không tìm thấy sản phẩm'
+                })
+            }
+            return res.json({
+                status: 200,
+                message: 'Đã tìm thấy sản phẩm',
+                data: findProduct
+            })
+        } catch (error) {
+            return res.json({
+                status: 500,
+                message: `Xảy ra lỗi ${error}`,
+            })
+        }
+    }
+
 }
